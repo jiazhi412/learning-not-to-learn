@@ -10,6 +10,7 @@ import os
 import math
 
 from utils import logger_setting, Timer
+import utils
 
 
 class GradReverse(torch.autograd.Function):
@@ -32,7 +33,9 @@ class Trainer(object):
 
         self._build_model()
         self._set_optimizer()
-        self.logger = logger_setting(option.exp_name, option.save_dir, option.debug)
+        self.logger = logger_setting(option.exp_name, str(option.color_var), option.save_dir, option.debug)
+        self.exp_dir = os.path.join(option.save_dir, option.exp_name)
+        self.color_var = option.color_var
 
     def _build_model(self):
         self.n_color_cls = 8
@@ -169,6 +172,7 @@ class Trainer(object):
                 msg = "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d)" \
                        % (loss_pred,loss_pred_color/3.,loss_pred_ps_color,step,int(100*i/data_loader.__len__()))
                 self.logger.info(msg)
+        return loss_pred, loss_pred_color, loss_pred_ps_color
 
 
     def _train_step_baseline(self, data_loader, step):
@@ -196,15 +200,15 @@ class Trainer(object):
 
     def _validate(self, data_loader):
         self._mode_setting(is_train=False)
-        self._initialization()
-        if self.option.checkpoint is not None:
-            self._load_model()
-        else:
-            print("No trained model for evaluation provided")
-            import sys
-            sys.exit()
+        # self._initialization()
+        # if self.option.checkpoint is not None:
+        #     self._load_model()
+        # else:
+        #     print("No trained model for evaluation provided")
+        #     import sys
+        #     sys.exit()
 
-        num_test = 10000
+        # num_test = 10000
 
         total_num_correct = 0.
         total_num_test = 0.
@@ -223,8 +227,10 @@ class Trainer(object):
             loss = self.loss(pred_label, torch.squeeze(labels))
             
             batch_size = images.shape[0]
-            total_num_correct += self._num_correct(pred_label,labels,topk=1).data[0]
-            total_loss += loss.data[0]*batch_size
+            # total_num_correct += self._num_correct(pred_label,labels,topk=1).data[0]
+            total_num_correct += self._num_correct(pred_label,labels,topk=1).item()
+            # total_loss += loss.data[0]*batch_size
+            total_loss += loss.item()*batch_size
             total_num_test += batch_size
                
         avg_loss = total_loss/total_num_test
@@ -232,6 +238,7 @@ class Trainer(object):
         msg = "EVALUATION LOSS  %.4f, ACCURACY : %.4f (%d/%d)" % \
                         (avg_loss,avg_acc,int(total_num_correct),total_num_test)
         self.logger.info(msg)
+        return avg_acc
 
 
 
@@ -258,7 +265,7 @@ class Trainer(object):
             'step': step,
             'optim_state_dict': self.optim.state_dict(),
             'net_state_dict': self.net.state_dict()
-        }, os.path.join(self.option.save_dir,self.option.exp_name, 'checkpoint_step_%04d.pth' % step))
+        }, os.path.join(self.option.save_dir,self.option.exp_name, str(self.option.color_var), 'checkpoint_step_%04d.pth' % step))
         print('checkpoint saved. step : %d'%step)
 
     def _load_model(self):
@@ -271,14 +278,16 @@ class Trainer(object):
         if self.option.checkpoint is not None:
             self._load_model()
 
-        self._mode_setting(is_train=True)
         timer = Timer(self.logger, self.option.max_step)
         start_epoch = 0
+        final_acc = 0
         for step in range(start_epoch, self.option.max_step):
+            self._mode_setting(is_train=True)
             if self.option.train_baseline:
                 self._train_step_baseline(train_loader, step)
             else:
-                self._train_step(train_loader,step)
+                loss_pred, loss_pred_color, loss_pred_ps_color = self._train_step(train_loader,step)
+                # self._train_step(train_loader,step)
             self.scheduler.step()
             self.scheduler_r.step()
             self.scheduler_g.step()
@@ -286,8 +295,19 @@ class Trainer(object):
 
             if step == 1 or step % self.option.save_step == 0 or step == (self.option.max_step-1):
                 if val_loader is not None:
-                    self._validate(step, val_loader)
+                    acc = self._validate(val_loader)
+                    if not math.isnan(loss_pred_color) and not math.isnan(loss_pred_ps_color):
+                        final_acc = acc
                 self._save_model(step)
+
+        # print(final_acc)
+        import datetime
+        data = {
+            'Time': [datetime.datetime.now()],
+            'Var': [self.color_var],
+            'Acc': [final_acc * 100]
+            }
+        utils.append_data_to_csv(data, os.path.join(self.exp_dir, 'trials.csv'))
 
 
     def _get_variable(self, inputs):

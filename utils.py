@@ -3,18 +3,26 @@ import os
 import json
 import time
 import logging
+import pandas as pd
+
+def append_data_to_csv(data,csv_name):
+    df = pd.DataFrame(data)
+    if os.path.exists(csv_name):
+        df.to_csv(csv_name,mode='a',index=False,header=False)
+    else:
+        df.to_csv(csv_name,index=False)
 
 def save_option(option):
-    option_path = os.path.join(option.save_dir, option.exp_name, "options.json")
+    option_path = os.path.join(option.save_dir, option.exp_name, str(option.color_var), "options.json")
 
     with open(option_path, 'w') as fp:
         json.dump(option.__dict__, fp, indent=4, sort_keys=True)
 
-def logger_setting(exp_name, save_dir, debug):
+def logger_setting(exp_name, color_var, save_dir, debug):
     logger = logging.getLogger(exp_name)
     formatter = logging.Formatter('[%(name)s] %(levelname)s: %(message)s')
 
-    log_out = os.path.join(save_dir, exp_name, 'train.log')
+    log_out = os.path.join(save_dir, exp_name, color_var, 'train.log')
     file_handler = logging.FileHandler(log_out)
     stream_handler = logging.StreamHandler()
 

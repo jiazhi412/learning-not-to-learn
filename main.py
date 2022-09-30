@@ -14,7 +14,7 @@ import torchvision.transforms as transforms
 import torch.utils.data as data
 
 def backend_setting(option):
-    log_dir = os.path.join(option.save_dir, option.exp_name)
+    log_dir = os.path.join(option.save_dir, option.exp_name, str(option.color_var))
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
@@ -29,7 +29,7 @@ def backend_setting(option):
         option.cuda = False
 
     if option.cuda:
-        os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+        # os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
         #os.environ['CUDA_VISIBLE_DEVICES'] = ','.join([str(i) for i in option.gpu_ids])
         torch.cuda.manual_seed_all(option.random_seed)
         cudnn.benchmark = option.cudnn_benchmark
@@ -42,16 +42,21 @@ def main():
     backend_setting(option)
     trainer = Trainer(option)
 
-    custom_loader = data_loader.WholeDataLoader(option)
+    custom_loader = data_loader.WholeDataLoader(option, istrain=True)
     trainval_loader = torch.utils.data.DataLoader(custom_loader,
                                                   batch_size=option.batch_size,
                                                   shuffle=True,
                                                   num_workers=option.num_workers)
-
+    custom_loader_test = data_loader.WholeDataLoader(option, istrain=False)
+    testloader = torch.utils.data.DataLoader(custom_loader_test,
+                                             batch_size=option.batch_size,
+                                             shuffle=True,
+                                             num_workers=option.num_workers)
 
     if option.is_train:
         save_option(option)
-        trainer.train(trainval_loader)
+        # trainer.train(trainval_loader)
+        trainer.train(trainval_loader, testloader)
     else:
         trainer._validate(trainval_loader)
 
