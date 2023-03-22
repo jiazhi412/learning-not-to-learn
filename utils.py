@@ -4,6 +4,7 @@ import json
 import time
 import logging
 import pandas as pd
+import torch
 
 def append_data_to_csv(data,csv_name):
     df = pd.DataFrame(data)
@@ -12,9 +13,13 @@ def append_data_to_csv(data,csv_name):
     else:
         df.to_csv(csv_name,index=False)
 
+def save_option_IMDB(option):
+    option_path = os.path.join(option.save_dir, option.exp_name, option.IMDB_train_mode, option.IMDB_test_mode, "option.json")
+    with open(option_path, 'w') as fp:
+        json.dump(option.__dict__, fp, indent=4, sort_keys=True)
+
 def save_option(option):
     option_path = os.path.join(option.save_dir, option.exp_name, str(option.color_var), "options.json")
-
     with open(option_path, 'w') as fp:
         json.dump(option.__dict__, fp, indent=4, sort_keys=True)
 
@@ -57,3 +62,18 @@ class Timer(object):
         msg = 'TIMER, duration(s)|remaining(h), %f, %f' % (duration, remaining)
 
         self.last = curr_time
+        
+import pickle
+def load_pkl(load_path):
+    with open(load_path, "rb") as f:
+        pkl_data = pickle.load(f)
+    return pkl_data
+
+def _num_correct_CelebA(outputs, labels):
+    preds = torch.sigmoid(outputs)
+    # print(preds.size())
+    # print(labels.size())
+    # print('djsladjad')
+    correct = (preds.round().view(-1) == labels.view(-1)).sum()
+    # print(correct)
+    return correct

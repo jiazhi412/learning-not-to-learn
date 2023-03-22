@@ -5,7 +5,7 @@ from torch.backends import cudnn
 import os
 import random
 from option import get_option
-from trainer import Trainer
+from trainer_CMNIST import Trainer
 from utils import save_option
 import data_loader
 

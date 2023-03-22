@@ -9,13 +9,14 @@ if not os.path.exists('errors'):
     os.makedirs('errors')
 
 # parameters
-command_template = 'python main.py --e {}  --color_var {}' 
-p1 = ['paper_uniform_929']
+command_template = 'python main_CMNIST.py --e {}  --color_var {}' 
+p1 = ['CMNIST_LNL_paper']
 # p2 = [0.001, 0.002]
 # p2 = [0.001, 0.002, 0.003, 0.004, 0.006, 0.007, 0.008, 0.009]
 # p2 = [0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05]
-p2 = [0.001, 0.002, 0.003, 0.004, 0.006, 0.007, 0.008, 0.009, 
-      0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05]
+# p2 = [0.001, 0.002, 0.003, 0.004, 0.006, 0.007, 0.008, 0.009, 
+#       0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05]
+p2 = [0.011, 0.012, 0.013, 0.014, 0.016, 0.017, 0.018, 0.019]
 
 for p1, p2 in product(p1, p2):
     command = command_template.format(p1, p2)
@@ -37,6 +38,8 @@ for p1, p2 in product(p1, p2):
         OUT.write('#SBATCH --output=outputs/{}.out \n'.format(job_name))
         OUT.write('#SBATCH --error=errors/{}.out \n'.format(job_name))
         OUT.write('source ~/.bashrc\n')
+        OUT.write('echo $HOSTNAME\n')
+        OUT.write('echo "total gpu resources allocated: "$CUDA_VISIBLE_DEVICES\n')
         OUT.write('conda activate pytorch\n')
         OUT.write(command)
 

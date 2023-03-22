@@ -131,6 +131,9 @@ class Trainer(object):
             # loss for self.net
             loss_pred = self.loss(pred_label, torch.squeeze(labels))
 
+            # print(pseudo_pred_r)
+            # print(pseudo_pred_r.size())
+            # print('djsaldla')
             loss_pseudo_pred_r = torch.mean(torch.sum(pseudo_pred_r*torch.log(pseudo_pred_r),1))
             loss_pseudo_pred_g = torch.mean(torch.sum(pseudo_pred_g*torch.log(pseudo_pred_g),1))
             loss_pseudo_pred_b = torch.mean(torch.sum(pseudo_pred_b*torch.log(pseudo_pred_b),1))
@@ -305,9 +308,9 @@ class Trainer(object):
         data = {
             'Time': [datetime.datetime.now()],
             'Var': [self.color_var],
-            'Acc': [final_acc * 100]
+            'LNL': [final_acc * 100]
             }
-        utils.append_data_to_csv(data, os.path.join(self.exp_dir, 'trials.csv'))
+        utils.append_data_to_csv(data, os.path.join(self.exp_dir, 'CMNIST_LNL_trials.csv'))
 
 
     def _get_variable(self, inputs):
