@@ -5,6 +5,65 @@ import time
 import logging
 import pandas as pd
 import torch
+from itertools import product
+
+def compute_subAcc_withlogits_binary(logits, target, a):
+    # output is logits and predict_prob is probability
+    assert logits.shape == target.shape, f"Acc, output {logits.shape} and target {target.shape} are not matched!"
+    predict_prob = torch.sigmoid(logits)
+    predict_prob = predict_prob.cpu().detach().numpy()
+    target = target.cpu().detach().numpy()
+    a = a.cpu().detach().numpy()
+    # Young
+    tmp = a <= 0
+    predict_prob_n = predict_prob[tmp.nonzero()]
+    target_n = target[tmp.nonzero()]
+    Acc_n = (predict_prob_n.round() == target_n).mean()
+    tmp = a > 0
+    predict_prob_p = predict_prob[tmp.nonzero()]
+    target_p = target[tmp.nonzero()]
+    Acc_p = (predict_prob_p.round() == target_p).mean()
+    return Acc_p, Acc_n
+
+
+def run(command_template, qos, gpu, *args):
+    if not os.path.exists('outputs'):
+        os.makedirs('outputs')
+    # if not os.path.exists('errors'):
+    #     os.makedirs('errors')
+
+    l = len(args)
+    job_name_template = '{}'
+    for _ in range(l-1):
+        job_name_template += '-{}'
+    for a in product(*args):
+        command = command_template.format(*a)
+        job_name = job_name_template.format(*a)
+        bash_file = '{}.sh'.format(job_name)
+        with open( bash_file, 'w' ) as OUT:
+            OUT.write('#!/bin/bash\n')
+            OUT.write('#SBATCH --job-name={} \n'.format(job_name))
+            OUT.write('#SBATCH --ntasks=1 \n')
+            OUT.write('#SBATCH --account=other \n')
+            OUT.write(f'#SBATCH --qos={qos} \n')
+            OUT.write('#SBATCH --partition=ALL \n')
+            OUT.write('#SBATCH --cpus-per-task=4 \n')
+            OUT.write(f'#SBATCH --gres=gpu:{gpu} \n')
+            OUT.write('#SBATCH --mem={}G \n'.format(16 * gpu))
+            OUT.write('#SBATCH --time=5-00:00:00 \n')
+            OUT.write('#SBATCH --exclude=vista[03] \n')
+            OUT.write('#SBATCH --output=outputs/{}.out \n'.format(job_name))
+            OUT.write('#SBATCH --error=outputs/{}.out \n'.format(job_name))
+            OUT.write('source ~/.bashrc\n')
+            OUT.write('echo $HOSTNAME\n')
+            OUT.write('echo "total gpu resources allocated: "$CUDA_VISIBLE_DEVICES\n')
+            OUT.write('conda activate pytorch\n')
+            OUT.write(command)
+        qsub_command = 'sbatch {}'.format(bash_file)
+        os.system( qsub_command )
+        os.system('rm -f {}'.format(bash_file))
+        print( qsub_command )
+        print( 'Submitted' )
 
 def append_data_to_csv(data,csv_name):
     df = pd.DataFrame(data)
@@ -15,6 +74,15 @@ def append_data_to_csv(data,csv_name):
 
 def save_option_IMDB(option):
     option_path = os.path.join(option.save_dir, option.exp_name, option.IMDB_train_mode, option.IMDB_test_mode, "option.json")
+    with open(option_path, 'w') as fp:
+        json.dump(option.__dict__, fp, indent=4, sort_keys=True)
+
+def save_option_Diabetes(option):
+    if option.bias_type == "I":
+        option_path = os.path.join(option.save_dir, option.exp_name, option.minority, str(option.minority_size), "option.json")
+    elif option.bias_type == "II":
+        option_path = os.path.join(option.save_dir, option.exp_name, option.Diabetes_train_mode, option.Diabetes_test_mode, "option.json")
+
     with open(option_path, 'w') as fp:
         json.dump(option.__dict__, fp, indent=4, sort_keys=True)
 

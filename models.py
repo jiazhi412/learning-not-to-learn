@@ -6,6 +6,31 @@ import torch.nn.functional as F
 import random
 import torchvision
 
+class MLP(nn.Module):
+    def __init__(self, in_dim, hidden_dims, out_dim, is_logits=True):
+        super().__init__()
+        layers = []
+        for dim in hidden_dims:
+            layers.append(nn.Linear(in_dim, dim))
+            layers.append(nn.BatchNorm1d(dim))
+            layers.append(nn.ReLU())
+            in_dim = dim
+        self.layers = nn.Sequential(*layers)
+        self.out = nn.Linear(in_dim, out_dim)
+        self.is_logits = is_logits
+        if not is_logits:
+            self.bn = nn.BatchNorm1d(out_dim)
+            self.relu = nn.ReLU()
+
+    def forward(self, x):
+        if len(x.size()) > 2:
+            x = x.view(x.size(0), -1)
+        x = self.layers(x)
+        x = self.out(x)
+        if not self.is_logits:
+            x = self.bn(self.relu(x))
+        return x
+
 def weights_init_kaiming(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
